@@ -13,12 +13,18 @@ public class Projectile : MonoBehaviour {
     public int angleOffset;
 
 
-    private void Start() {
+    private void Awake() {
+        enemyHandler = GameObject.Find("EnemyHandler").GetComponent<EnemyHandler>();
+
         if (gameObject.name.StartsWith("Bullet")) {
             projectileForce = 20f;
             shotDelay = 0.08f;
             angleOffset = 270;
         } else if (gameObject.name.StartsWith("ZotBubble")) {
+            projectileForce = 5f;
+            shotDelay = 0.2f;
+            angleOffset = 0;
+        } else if (gameObject.name.StartsWith("Dirt")) {
             projectileForce = 5f;
             shotDelay = 0.2f;
             angleOffset = 0;

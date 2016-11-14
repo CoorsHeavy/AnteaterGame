@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 using System.Collections;
 using System.Collections.Generic;
@@ -10,6 +11,7 @@ public class Player : MonoBehaviour {
     private const float JumpForce = 400f;
 
     private bool jump = false;
+    private bool jumpedRecently = false;
     private bool grounded = false;
     private bool facingRight = true;
     private bool fireUp = false;
@@ -18,14 +20,10 @@ public class Player : MonoBehaviour {
 
     private SpriteRenderer spriteRenderer;
     private Animator animator;
-    private Transform groundCheck;
     private Transform clickCheck;
     private Vector3 spawnPoint;
-    private GameObject projectileTypeDropdown;
-    private GameObject currentProjectileType;
-    public GameObject bulletPrefab;
-    public GameObject zotBubblePrefab;
     public GameManager gameManager;
+    private EdgeCollider2D bottomEdgeCollider;
 
     public Vector3 mousePositionWhenClickedPlayer;
     public Vector3 mousePositionNow;
@@ -40,19 +38,15 @@ public class Player : MonoBehaviour {
     private void Start() {
         spriteRenderer = GetComponent<SpriteRenderer>();
         animator = GetComponent<Animator>();
-        groundCheck = transform.Find("GroundCheck");
         clickCheck = transform.Find("ClickCheck");
         spawnPoint = transform.position;
-        StartCoroutine("ShootTimer");
+        StartCoroutine(ShootTimer());
         mousePositionQueue = new Queue<List<float>>();
-        projectileTypeDropdown = GameObject.Find("ProjectileTypeDropdown");
+        bottomEdgeCollider = GetComponent<EdgeCollider2D>();
     }
 
     // Check input in Update and set flags to be acted on in FixedUpdate
     private void Update() {
-
-        // Set projectile type based on current dropdown selection
-        currentProjectileType = projectileTypeDropdown.GetComponent<Dropdown>().value == 0 ? bulletPrefab : zotBubblePrefab;
 
         // Save mouse position to be used in FixedUpdate
         mousePositionNow = Input.mousePosition;
@@ -61,16 +55,16 @@ public class Player : MonoBehaviour {
         velocity = GetComponent<Rigidbody2D>().velocity;
         
         // Set grounded flag - can jump off of platforms, enemies, or objects
-        bool grounded1 = Physics2D.Linecast(transform.position, groundCheck.position, 1 << LayerMask.NameToLayer("PlatformLayer"));
-        bool grounded2 = Physics2D.Linecast(transform.position, groundCheck.position, 1 << LayerMask.NameToLayer("ObjectLayer"));
-        bool grounded3 = Physics2D.Linecast(transform.position, groundCheck.position, 1 << LayerMask.NameToLayer("EnemyLayer"));
+        bool grounded1 = bottomEdgeCollider.IsTouchingLayers(1 << LayerMask.NameToLayer("PlatformLayer"));
+        bool grounded2 = bottomEdgeCollider.IsTouchingLayers(1 << LayerMask.NameToLayer("ObjectLayer"));
+        bool grounded3 = bottomEdgeCollider.IsTouchingLayers(1 << LayerMask.NameToLayer("EnemyLayer"));
         grounded = grounded1 || grounded2 || grounded3;
 
         // Set mouseInsideClickCheckBox flag
         mouseInsideClickCheckBox = clickCheck.GetComponent<BoxCollider2D>().bounds.Contains(GetMouseWorldPosition());
         
         // Display white clickCheck box around player when mouse is inside click check box
-        clickCheck.GetComponent<SpriteRenderer>().enabled = mouseInsideClickCheckBox;
+//        clickCheck.GetComponent<SpriteRenderer>().enabled = mouseInsideClickCheckBox;
 
 
         // Horizontal movement
@@ -112,7 +106,8 @@ public class Player : MonoBehaviour {
         Move(xDirection);
 
         // Jumping
-        if (jump) {
+        if (jump && !jumpedRecently) {
+            StartCoroutine(JumpedRecentlyTimer());
             jump = false;
             animator.SetTrigger("Jump");
             GetComponent<Rigidbody2D>().AddForce(new Vector2(0f, JumpForce));
@@ -124,6 +119,12 @@ public class Player : MonoBehaviour {
         if (transform.position.y <= -10) {
             Respawn();
         }
+    }
+
+    private IEnumerator JumpedRecentlyTimer() {
+        jumpedRecently = true;
+        yield return new WaitForSeconds(0.25f);
+        jumpedRecently = false;
     }
 
     private void OnMouseDown() {
@@ -166,21 +167,25 @@ public class Player : MonoBehaviour {
     private IEnumerator ShootTimer() {
         while (true) {
             if (Input.GetMouseButton(0) && !clickDraggingPlayer) {
-                FireTowardMouse();
-                yield return new WaitForSeconds(currentProjectileType.GetComponent<Projectile>().shotDelay);
+                GameObject projectileInstance = Instantiate(gameManager.GetCurrentProjectileType());
+                if (projectileInstance.gameObject.name.StartsWith("Dirt")) {
+                    FireTowardMouseInArc(projectileInstance);
+                } else {
+                    FireTowardMouse(projectileInstance);
+                }
+                yield return new WaitForSeconds(projectileInstance.GetComponent<Projectile>().shotDelay);
             } else if (Input.GetButton("Fire1")) {
+                GameObject projectileInstance = Instantiate(gameManager.GetCurrentProjectileType());
                 fireUp = (int) Input.GetAxisRaw("Vertical") == 1;
-                Fire();
-                yield return new WaitForSeconds(currentProjectileType.GetComponent<Projectile>().shotDelay);
+                Fire(projectileInstance);
+                yield return new WaitForSeconds(projectileInstance.GetComponent<Projectile>().shotDelay);
             } else {
                 yield return null;
             }
         }
     }
 
-    private void Fire() {
-        GameObject bulletInstance = Instantiate(currentProjectileType) as GameObject;
-
+    private void Fire(GameObject bulletInstance) {
         Vector3 bulletOffset;
 
         Vector3 playerPos = new Vector3(transform.position.x, transform.position.y + GetComponent<BoxCollider2D>().bounds.extents.y, 0);
@@ -213,12 +218,10 @@ public class Player : MonoBehaviour {
         bulletInstance.transform.position = playerPos + bulletOffset;
         bulletInstance.transform.rotation = bulletQuaternion;
         bulletInstance.GetComponent<Rigidbody2D>().velocity = bulletVelocity;
-        bulletInstance.transform.SetParent(transform);
+        bulletInstance.transform.SetParent(transform.Find("/Projectiles"));
     }
 
-    private void FireTowardMouse() {
-        GameObject bulletInstance = Instantiate(currentProjectileType) as GameObject;
-
+    private void FireTowardMouse(GameObject bulletInstance) {
         Vector3 bulletOffset = Vector3.zero;
 
         Vector3 playerPos = new Vector3(transform.position.x, transform.position.y + GetComponent<BoxCollider2D>().bounds.extents.y, 0);
@@ -253,7 +256,20 @@ public class Player : MonoBehaviour {
         bulletInstance.transform.position = playerPos + bulletOffset;
         bulletInstance.transform.rotation = bulletQuaternion;
         bulletInstance.GetComponent<Rigidbody2D>().velocity = bulletVelocity;
-        bulletInstance.transform.SetParent(transform);
+        bulletInstance.transform.SetParent(transform.Find("/Projectiles"));
+    }
+
+    private void FireTowardMouseInArc(GameObject dirtInstance) {
+        Vector3 originPos = new Vector3(transform.position.x, transform.position.y + GetComponent<BoxCollider2D>().bounds.extents.y, 0);
+        Vector3 targetPos = GetMouseWorldPosition();
+        float flightTime = 1.5f;  // in seconds
+        float g = Mathf.Abs(Physics2D.gravity.y);  // gravity
+        float xVel = (targetPos.x - originPos.x) / flightTime;
+        float yVel = (targetPos.y + 0.5f * g * flightTime * flightTime - originPos.y) / flightTime;
+
+        dirtInstance.transform.position = originPos;
+        dirtInstance.GetComponent<Rigidbody2D>().velocity = new Vector3(xVel, yVel, 0f);
+        dirtInstance.transform.SetParent(transform.Find("/Projectiles"));
     }
 
     private Vector3 GetMouseWorldPosition() {
@@ -263,7 +279,6 @@ public class Player : MonoBehaviour {
     }
 
 	private void OnCollisionEnter2D(Collision2D coll) {
-
 		if (currentHealth > 0) {
 			if (coll.gameObject.layer == LayerMask.NameToLayer ("EnemyLayer")) {
 				currentHealth--;

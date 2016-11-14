@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 using System.Collections;
 using UnityEngine.UI;
 
@@ -9,18 +9,14 @@ public class CoinGenerator : MonoBehaviour {
     private int xSep = 1;
     private int ySep = 1;
 
-    void Start () {
-
+    private void Start () {
         // Create some coins
         for (int col = 0; col < 10; col++) {
 	        for (int row = 0; row < 5; row++) {
 	            GameObject instance = Instantiate(coin, new Vector3(col * xSep + initialPos.x, row * ySep +initialPos.y, 0f), Quaternion.identity) as GameObject;
-                instance.transform.SetParent(this.transform);
+                instance.transform.SetParent(transform.Find("/Collectables"));
             }
         }
-        
-        // Destroy original coin since another has been made in its place.
-        Destroy(coin.gameObject);
 	}
 	
 }

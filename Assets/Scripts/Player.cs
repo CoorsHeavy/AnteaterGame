@@ -281,11 +281,15 @@ public class Player : MonoBehaviour {
 	private void OnCollisionEnter2D(Collision2D coll) {
 		if (currentHealth > 0) {
 			if (coll.gameObject.layer == LayerMask.NameToLayer ("EnemyLayer")) {
-				currentHealth--;
-				transform.Find ("/Player/HealthBar/GreenHealthBarBox").localScale = new Vector3 ((float)currentHealth / maxHealth, 0.55f, 0);
-			    if (currentHealth <= 0) {
-                    Respawn();
-			    }
+				if(coll.gameObject.GetComponent<Collider2D>().bounds.max.y <= gameObject.GetComponent<Collider2D>().bounds.min.y){
+					Destroy (coll.gameObject);
+				}else{
+					currentHealth--;
+					transform.Find ("/Player/HealthBar/GreenHealthBarBox").localScale = new Vector3 ((float)currentHealth / maxHealth, 0.55f, 0);
+					if (currentHealth <= 0) {
+						Respawn();
+					}	
+				}
 			}
 		}
 	}

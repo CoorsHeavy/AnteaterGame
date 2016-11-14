@@ -35,6 +35,7 @@ public class Player : MonoBehaviour {
 	private int maxHealth = 10;
 
 
+
     private void Start() {
         spriteRenderer = GetComponent<SpriteRenderer>();
         animator = GetComponent<Animator>();

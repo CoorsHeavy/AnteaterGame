@@ -6,10 +6,11 @@ using UnityEngine.UI;
 
 public class Player : MonoBehaviour {
 
-    private const float MaxSpeedX = 10f;
+    private float MaxSpeedX = 5f;
     private const float MoveForce = 15f;
     private const float JumpForce = 400f;
 
+	private bool sprint = false;
     private bool jump = false;
     private bool jumpedRecently = false;
     private bool grounded = false;
@@ -25,6 +26,8 @@ public class Player : MonoBehaviour {
     public GameManager gameManager;
     private EdgeCollider2D bottomEdgeCollider;
 
+	public EnemyHandler enemyHandler;
+
     public Vector3 mousePositionWhenClickedPlayer;
     public Vector3 mousePositionNow;
     public Vector2 velocity; // temporary, for debugging
@@ -33,7 +36,6 @@ public class Player : MonoBehaviour {
     private Queue<List<float>> mousePositionQueue;
 	private int currentHealth = 10;
 	private int maxHealth = 10;
-
 
 
     private void Start() {
@@ -82,6 +84,7 @@ public class Player : MonoBehaviour {
 
         // Jumping
         jump = grounded && Input.GetButton("Jump");  // set jump flag from kb input.  this may get overriden in FixedUpdate
+		sprint = grounded && Input.GetKey(KeyCode.LeftShift);
     }
 
     private void FixedUpdate() {
@@ -114,7 +117,12 @@ public class Player : MonoBehaviour {
             GetComponent<Rigidbody2D>().AddForce(new Vector2(0f, JumpForce));
 //            Debug.Log("added jump force!  grounded:" + grounded + "  jump:" + jump + "  realtimeSinceStartup:" + Time.realtimeSinceStartup);
         }
-
+		if (sprint && grounded) {
+			MaxSpeedX = 10f;
+		}
+		if (!sprint && grounded) {
+			MaxSpeedX = 5f;
+		}
 
         // Respawn if fallen off the world
         if (transform.position.y <= -10) {
@@ -282,11 +290,16 @@ public class Player : MonoBehaviour {
 	private void OnCollisionEnter2D(Collision2D coll) {
 		if (currentHealth > 0) {
 			if (coll.gameObject.layer == LayerMask.NameToLayer ("EnemyLayer")) {
-				currentHealth--;
-				transform.Find ("/Player/HealthBar/GreenHealthBarBox").localScale = new Vector3 ((float)currentHealth / maxHealth, 0.55f, 0);
-			    if (currentHealth <= 0) {
-                    Respawn();
-			    }
+				if(coll.gameObject.GetComponent<Collider2D>().bounds.max.y <= gameObject.GetComponent<Collider2D>().bounds.min.y){
+					GetComponent<Rigidbody2D>().AddForce(new Vector2(0f, JumpForce) * 1.5f);
+					enemyHandler.KillEnemy (coll.gameObject);
+				}else{
+					currentHealth--;
+					transform.Find ("/Player/HealthBar/GreenHealthBarBox").localScale = new Vector3 ((float)currentHealth / maxHealth, 0.55f, 0);
+					if (currentHealth <= 0) {
+						Respawn();
+					}	
+				}
 			}
 		}
 	}

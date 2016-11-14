@@ -291,8 +291,12 @@ public class Player : MonoBehaviour {
 		if (currentHealth > 0) {
 			if (coll.gameObject.layer == LayerMask.NameToLayer ("EnemyLayer")) {
 				if(coll.gameObject.GetComponent<Collider2D>().bounds.max.y <= gameObject.GetComponent<Collider2D>().bounds.min.y){
+<<<<<<< HEAD
 					GetComponent<Rigidbody2D>().AddForce(new Vector2(0f, JumpForce) * 1.5f);
 					enemyHandler.KillEnemy (coll.gameObject);
+=======
+					Destroy (coll.gameObject);
+>>>>>>> refs/remotes/origin/master
 				}else{
 					currentHealth--;
 					transform.Find ("/Player/HealthBar/GreenHealthBarBox").localScale = new Vector3 ((float)currentHealth / maxHealth, 0.55f, 0);
